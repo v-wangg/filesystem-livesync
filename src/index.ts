@@ -153,7 +153,7 @@ async function eachProc(syncKey: string, config: eachConf) {
             return id2path_base(filename);
         },
         path2id: function (filename: string): string {
-            return path2id_base(filename);
+            return path2id_base(filename.toLowerCase());
         },
         isTargetFile: function (file: string): boolean {
             if (file.includes(":")) return false;
@@ -273,7 +273,8 @@ async function eachProc(syncKey: string, config: eachConf) {
     }
 
     const pushFile = async (pathSrc: string, stat: Stats, saveAsBigChunk: boolean) => {
-        const id = serverPath + storagePathToVaultPath(pathSrc);
+        const originalPath = storagePathToVaultPath(pathSrc);
+        const id = (serverPath + originalPath).toLowerCase();
         const docId = id.startsWith("_") ? "/" + id : id;
         try {
             let doc = (await remote.get(docId)) as NewEntry;
@@ -304,6 +305,7 @@ async function eachProc(syncKey: string, config: eachConf) {
         }
         const newNote: LoadedEntry = {
             _id: docId,
+            path: originalPath,
             children: [],
             ctime: stat.ctime.getTime(),
             mtime: stat.mtime.getTime(),
@@ -319,7 +321,7 @@ async function eachProc(syncKey: string, config: eachConf) {
         }
     };
     const unlinkFile = async (pathSrc: string) => {
-        const id = serverPath + storagePathToVaultPath(pathSrc);
+        const id = (serverPath + storagePathToVaultPath(pathSrc)).toLowerCase();
         const docId = id.startsWith("_") ? "/" + id : id;
         try {
             let oldNote: any = await remote.get(docId);
@@ -354,7 +356,7 @@ async function eachProc(syncKey: string, config: eachConf) {
             log(`Failed to read file from database:${localPath}`);
             return false;
         }
-        const docName = fromDoc._id.substring(serverPath.length);
+        const docName = fromDoc.path || fromDoc._id.substring(serverPath.length);
         const sendDoc: LoadedEntry = {
             ...fromDoc,
             _id: docName.startsWith("_") ? "/" + docName : docName
@@ -408,7 +410,7 @@ async function eachProc(syncKey: string, config: eachConf) {
     }
 
     if (config.sync_on_connect || config.server.initialScan) {
-        const dbfiles = await remote.find({ limit: 999999999, selector: { $or: [{ type: "plain" }, { type: "newnote" }] }, fields: ["_id", "mtime"] });
+        const dbfiles = await remote.find({ limit: 999999999, selector: { $or: [{ type: "plain" }, { type: "newnote" }] }, fields: ["_id", "mtime", "path"] });
 
         log(`Waiting for initial sync(Database to storage)`);
         if (dbfiles.docs) {
@@ -419,7 +421,7 @@ async function eachProc(syncKey: string, config: eachConf) {
                     continue;
                 }
 
-                const localPath = fn.substring(serverPath.length);
+                const localPath = (doc as any).path || fn.substring(serverPath.length);
                 const storageNewFilePath = vaultPathToStroageABSPath(localPath);
                 // log(`Checking initial file:${localPath}`);
                 // log(`--> file:${storageNewFilePath}`);
