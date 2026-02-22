@@ -314,7 +314,7 @@ async function eachProc(syncKey: string, config: eachConf) {
         };
         let ret = await putDBEntry(env, newNote, saveAsBigChunk);
         if (ret) {
-            addTouchedFile(pathSrc, 0);
+            // addTouchedFile(pathSrc, 0);
             addKnownFile(conf.syncKey, ret.id, ret.rev);
         }
     };
@@ -331,7 +331,7 @@ async function eachProc(syncKey: string, config: eachConf) {
             }
             let ret = await remote.put(oldNote);
             addKnownFile(conf.syncKey, ret.id, ret.rev);
-            addTouchedFile(pathSrc, 0);
+            // addTouchedFile(pathSrc, 0);
         } catch (ex: any) {
             if (ex.status && ex.status == 404) {
                 // NO OP.
