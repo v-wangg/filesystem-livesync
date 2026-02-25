@@ -507,6 +507,16 @@ async function eachProc(syncKey: string, config: eachConf) {
         }
         log(`Detected:delete:${filePath}`);
         await unlinkFile(pathSrc);
+        // Remove empty parent directories up to vault root
+        let dir = path.dirname(pathSrc);
+        while (dir !== exportPath && dir !== path.dirname(dir)) {
+            try {
+                await fs.rmdir(dir);
+                dir = path.dirname(dir);
+            } catch {
+                break; // non-empty or permission error — stop
+            }
+        }
     });
     watcher.on("add", async (pathSrc: string, stat: Stats) => {
         const filePath = pathSrc;
