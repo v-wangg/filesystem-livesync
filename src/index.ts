@@ -249,7 +249,7 @@ async function eachProc(syncKey: string, config: eachConf) {
                 },
             })
             .on("change", async function (change) {
-                if (change.doc?._id.indexOf(":") == -1 && change.doc?._id.startsWith(e.fromPrefix) && isVaildDoc(change.doc._id)) {
+                if (change.doc?._id.startsWith(e.fromPrefix) && isVaildDoc(change.doc._id)) {
                     let x = await transferDoc(e.syncKey, change.doc, e.fromPrefix, e.passphrase, exportPath, deleteMetadataOfDeletedFiles);
                     if (x) {
                         syncStat[syncKey] = change.seq + "";
