@@ -25,6 +25,25 @@ const xxhash = require("xxhash-wasm");
 
 const PouchDB: PouchDB.Static<{}> = PouchDB_src;
 
+// Internal file prefixes used by Obsidian LiveSync for hidden files (.obsidian/, .claude/, etc.)
+const INTERNAL_PREFIXES = ['i:', 'ps:'];
+
+function hasInternalPrefix(id: string): boolean {
+    return INTERNAL_PREFIXES.some(p => id.startsWith(p));
+}
+
+function stripInternalPrefix(id: string): string {
+    for (const prefix of INTERNAL_PREFIXES) {
+        if (id.startsWith(prefix)) return id.substring(prefix.length);
+    }
+    return id;
+}
+
+function addInternalPrefix(vaultPath: string): string {
+    if (vaultPath.startsWith('.')) return 'i:' + vaultPath;
+    return vaultPath;
+}
+
 const statFile = "./dat/stat.json";
 
 let running: { [key: string]: boolean } = {};
@@ -156,6 +175,7 @@ async function eachProc(syncKey: string, config: eachConf) {
             return path2id_base(filename.toLowerCase());
         },
         isTargetFile: function (file: string): boolean {
+            if (hasInternalPrefix(file)) return true;
             if (file.includes(":")) return false;
             return true;
         },
@@ -274,7 +294,8 @@ async function eachProc(syncKey: string, config: eachConf) {
 
     const pushFile = async (pathSrc: string, stat: Stats, saveAsBigChunk: boolean) => {
         const originalPath = storagePathToVaultPath(pathSrc);
-        const id = (serverPath + originalPath).toLowerCase();
+        const rawId = (serverPath + originalPath).toLowerCase();
+        const id = addInternalPrefix(rawId);
         const docId = id.startsWith("_") ? "/" + id : id;
         try {
             let doc = (await remote.get(docId)) as NewEntry;
@@ -305,7 +326,7 @@ async function eachProc(syncKey: string, config: eachConf) {
         }
         const newNote: LoadedEntry = {
             _id: docId,
-            path: originalPath,
+            path: addInternalPrefix(originalPath),
             children: [],
             ctime: stat.ctime.getTime(),
             mtime: stat.mtime.getTime(),
@@ -321,7 +342,8 @@ async function eachProc(syncKey: string, config: eachConf) {
         }
     };
     const unlinkFile = async (pathSrc: string) => {
-        const id = (serverPath + storagePathToVaultPath(pathSrc)).toLowerCase();
+        const rawId = (serverPath + storagePathToVaultPath(pathSrc)).toLowerCase();
+        const id = addInternalPrefix(rawId);
         const docId = id.startsWith("_") ? "/" + id : id;
         try {
             let oldNote: any = await remote.get(docId);
@@ -356,7 +378,7 @@ async function eachProc(syncKey: string, config: eachConf) {
             log(`Failed to read file from database:${localPath}`);
             return false;
         }
-        const docName = fromDoc.path || fromDoc._id.substring(serverPath.length);
+        const docName = stripInternalPrefix(fromDoc.path || fromDoc._id.substring(serverPath.length));
         const sendDoc: LoadedEntry = {
             ...fromDoc,
             _id: docName.startsWith("_") ? "/" + docName : docName
@@ -415,13 +437,14 @@ async function eachProc(syncKey: string, config: eachConf) {
         log(`Waiting for initial sync(Database to storage)`);
         if (dbfiles.docs) {
             for (const doc of dbfiles.docs) {
-                if (doc._id.indexOf(":") !== -1) continue;
+                if (doc._id.indexOf(":") !== -1 && !hasInternalPrefix(doc._id)) continue;
                 const fn = doc._id.startsWith("/") ? doc._id.substring(1) : doc._id;
-                if (!isTargetFile(fn)) {
+                if (!isTargetFile(stripInternalPrefix(fn))) {
                     continue;
                 }
 
-                const localPath = (doc as any).path || fn.substring(serverPath.length);
+                const rawLocalPath = (doc as any).path || fn.substring(serverPath.length);
+                const localPath = stripInternalPrefix(rawLocalPath);
                 const storageNewFilePath = vaultPathToStroageABSPath(localPath);
                 // log(`Checking initial file:${localPath}`);
                 // log(`--> file:${storageNewFilePath}`);
@@ -504,6 +527,7 @@ async function eachProc(syncKey: string, config: eachConf) {
 
 function isVaildDoc(id: string): boolean {
     if (id == "obsydian_livesync_version") return false;
+    if (hasInternalPrefix(id)) return true;
     if (id.indexOf(":") !== -1) return false;
     return true;
 }
