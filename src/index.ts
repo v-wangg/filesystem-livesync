@@ -347,7 +347,7 @@ async function eachProc(syncKey: string, config: eachConf) {
         const docId = id.startsWith("_") ? "/" + id : id;
         try {
             let oldNote: any = await remote.get(docId);
-            if (deleteMetadataOfDeletedFiles || hasInternalPrefix(id)) {
+            if (deleteMetadataOfDeletedFiles) {
                 oldNote._deleted = true;
             } else {
                 oldNote.deleted = true;
@@ -501,7 +501,7 @@ async function eachProc(syncKey: string, config: eachConf) {
     watcher.on("unlink", async (pathSrc: string, stat: Stats) => {
         const filePath = pathSrc;
 
-        if (isTouchedFile(filePath, 0)) {
+        if (isTouchedFile(filePath, Date.now())) {
             // log(`Self-detected::${filePath}`);
             return;
         }
@@ -538,7 +538,7 @@ async function exportDoc(env: DBFunctionEnvironment, sendDoc: LoadedEntry, docNa
 
 
         try {
-            addTouchedFile(writePath, 0);
+            addTouchedFile(writePath, Date.now());
             await fs.unlink(writePath);
             log(`doc:${docName}: Deleted, so delete from ${writePath}`);
             // Remove empty parent directories up to vault root
