@@ -541,6 +541,16 @@ async function exportDoc(env: DBFunctionEnvironment, sendDoc: LoadedEntry, docNa
             addTouchedFile(writePath, 0);
             await fs.unlink(writePath);
             log(`doc:${docName}: Deleted, so delete from ${writePath}`);
+            // Remove empty parent directories up to vault root
+            let dir = path.dirname(writePath);
+            while (dir !== exportPath && dir !== path.dirname(dir)) {
+                try {
+                    await fs.rmdir(dir);
+                    dir = path.dirname(dir);
+                } catch {
+                    break; // non-empty or permission error — stop
+                }
+            }
         } catch (ex: any) {
             if (ex.code == "ENOENT") {
                 log(`doc:${docName}: Deleted, but already not exists on ${writePath}`);
