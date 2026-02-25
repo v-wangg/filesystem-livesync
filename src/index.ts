@@ -347,7 +347,7 @@ async function eachProc(syncKey: string, config: eachConf) {
         const docId = id.startsWith("_") ? "/" + id : id;
         try {
             let oldNote: any = await remote.get(docId);
-            if (deleteMetadataOfDeletedFiles) {
+            if (deleteMetadataOfDeletedFiles || hasInternalPrefix(id)) {
                 oldNote._deleted = true;
             } else {
                 oldNote.deleted = true;
