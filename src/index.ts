@@ -375,7 +375,7 @@ async function eachProc(syncKey: string, config: eachConf) {
     async function pullFile(id: string, serverPath: string, localPath: string, deleteMetadataOfDeletedFiles: boolean) {
         const fromDoc = await getDBEntry(env, env.path2id(id), undefined, false, false, true);
         if (!fromDoc) {
-            log(`Failed to read file from database:${localPath}`);
+            log(`Failed to read file from database: id=${id} (resolved: ${env.path2id(id)})`);
             return false;
         }
         const docName = stripInternalPrefix(fromDoc.path || fromDoc._id.substring(serverPath.length));
@@ -387,7 +387,7 @@ async function eachProc(syncKey: string, config: eachConf) {
         if (await exportDoc(env, sendDoc, docName, exportPath)) {
             return true;
         } else {
-            log(`Failed:${localPath}`);
+            log(`Failed to export: id=${id}, docName=${docName}`);
             return false;
         }
     }
@@ -480,6 +480,12 @@ async function eachProc(syncKey: string, config: eachConf) {
     }
 
     const watcher = chokidar.watch(exportPath, {
+        ignored: [
+            '**/node_modules/**',
+            '**/.venv/**',
+            '**/__pycache__/**',
+            '**/.git/**',
+        ],
         ignoreInitial: !config.local.initialScan && !config.sync_on_connect,
         awaitWriteFinish: {
             stabilityThreshold: 500,
